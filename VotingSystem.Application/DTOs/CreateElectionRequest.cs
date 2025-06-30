@@ -1,9 +1,9 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace VotingSystem.Application.DTO
+namespace VotingSystem.Application.DTOs
 {
     /// <summary>
-    ///  a
+    ///  投票システムの選挙作成リクエストDTO
     /// </summary>
     public class CreateElectionRequest
     {
