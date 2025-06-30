@@ -1,0 +1,103 @@
+@page "/vote/{electionId:guid}"
+@using VotingSystem.Application.DTOs
+@using VotingSystem.Application.Services
+@inject IVotingService VotingService
+@inject NavigationManager NavigationManager
+
+@inject IElectionService ElectionService
+
+<PageTitle>投票</PageTitle>
+<h1>投票</h1>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (election != null)
+{
+    <!-- 選挙情報 -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">@election.Title</h5>
+            <p class="card-text">
+                <strong>開始:</strong> @election.StartDate.ToString("yyyy/MM/dd HH:mm")<br />
+                <strong>終了:</strong> @election.EndDate.ToString("yyyy/MM/dd HH:mm")<br />
+                <strong>投票数:</strong> @election.TotalVotes
+            </p>
+        </div>
+    </div>
+    <!-- 投票者ID入力 -->
+    <div class="mb-3">
+        <label for="voterIdentifier" class="form-label">投票者ID</label>
+        <input type="text" class="form-control" id="voterIdentifier" @bind="voterIdentifier" placeholder="投票者の識別子を入力してください">
+    </div>
+    <!-- 候補者選択 -->
+    <div class="mb-3">
+        <label for="candidateSelect" class="form-label">候補者を選択してください</label>
+        <select class="form-select" id="candidateSelect" @bind="selectedCandidateId">
+            <option value="">選択してください</option>
+            @foreach (var candidate in election.Candidates)
+            {
+                <option value="@candidate.Id">@candidate.Name</option>
+            }
+        </select>
+    </div>
+    <!-- 投票ボタン -->
+    <button class="btn btn-primary" @onclick="SubmitVoteAsync" disabled="@isSubmitting || string.IsNullOrEmpty(selectedCandidateId) || string.IsNullOrEmpty(voterIdentifier)">
+        @if (isSubmitting)
+        {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 投票中...
+        }
+        else
+        {
+            @:投票する
+        }
+    </button>
+    <!-- 成功メッセージ -->
+    @if (isSubmitting)
+    {
+        <div class="alert alert-success mt-3">
+            投票が成功しました！<br />
+            <a href="/elections" class="btn btn-secondary mt-2">選挙一覧に戻る</a>
+        </div>
+    }
+    <!-- エラーメッセージ -->
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger mt-3">@errorMessage</div>
+    } 
+}
+
+@code {
+    [Parameter]
+    public Guid ElectionId { get; set; }
+
+    private ElectionResponse? election;
+    private string? selectedCandidateId;
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    private string voterIdentifier = string.Empty;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        election = await ElectionService.GetElectionByIdAsync(ElectionId);
+        if (election == null)
+        {
+            errorMessage = "選挙が見つかりません。";
+        }
+    }
+
+    private async Task SubmitVoteAsync()
+    {
+        var request = new CastVoteRequest
+        {
+            ElectionId = ElectionId,
+            SelectedCandidate = selectedCandidateId!,
+            VoterIdentifier = voterIdentifier
+        };
+
+        bool success = await VotingService.CastVoteAsync(request);
+    }
+}
