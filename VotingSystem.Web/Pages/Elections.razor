@@ -1,0 +1,48 @@
+@page "/elections"
+@using VotingSystem.Application.DTOs
+@using VotingSystem.Application.Services
+@inject IElectionService ElectionService
+
+<PageTitle>選挙一覧</PageTitle>
+
+<h1>選挙一覧</h1>
+
+@if (elections == null)
+{
+    <p><em>読み込み中...</em></p>
+}
+else if (elections.Count == 0)
+{
+    <p>現在開催中の選挙はありません。</p>
+}
+else
+{
+    <div class="row">
+        @foreach (var election in elections)
+        {
+            <div class="col-md-6 mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">@election.Title</h5>
+                        <p class="card-text">
+                            <strong>開始:</strong> @election.StartDate.ToString("yyyy/MM/dd HH:mm")<br />
+                            <strong>終了:</strong> @election.EndDate.ToString("yyyy/MM/dd HH:mm")<br />
+                            <strong>投票数:</strong> @election.TotalVotes
+                        </p>
+                        <a href="/vote/@election.Id" class="btn btn-primary">投票する</a>
+                        <a href="/results/@election.Id" class="btn btn-secondary">結果を見る</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<ElectionResponse>? elections;
+
+    protected override async Task OnInitializedAsync()
+    {
+        elections = await ElectionService.GetActiveElectionsAsync();
+    }
+}

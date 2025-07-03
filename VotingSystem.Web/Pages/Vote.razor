@@ -39,7 +39,7 @@
             <option value="">選択してください</option>
             @foreach (var candidate in election.Candidates)
             {
-                <option value="@candidate.Id">@candidate.Name</option>
+                <option value="@candidate">@candidate</option>
             }
         </select>
     </div>
@@ -47,11 +47,12 @@
     <button class="btn btn-primary" @onclick="SubmitVoteAsync" disabled="@isSubmitting || string.IsNullOrEmpty(selectedCandidateId) || string.IsNullOrEmpty(voterIdentifier)">
         @if (isSubmitting)
         {
-            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 投票中...
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <text>投票中...</text>
         }
         else
         {
-            @:投票する
+            <text>投票する</text>
         }
     </button>
     <!-- 成功メッセージ -->
@@ -62,11 +63,6 @@
             <a href="/elections" class="btn btn-secondary mt-2">選挙一覧に戻る</a>
         </div>
     }
-    <!-- エラーメッセージ -->
-    @if (!string.IsNullOrEmpty(errorMessage))
-    {
-        <div class="alert alert-danger mt-3">@errorMessage</div>
-    } 
 }
 
 @code {
@@ -91,13 +87,42 @@
 
     private async Task SubmitVoteAsync()
     {
-        var request = new CastVoteRequest
+        if (string.IsNullOrEmpty(selectedCandidateId) || string.IsNullOrEmpty(voterIdentifier))
         {
-            ElectionId = ElectionId,
-            SelectedCandidate = selectedCandidateId!,
-            VoterIdentifier = voterIdentifier
-        };
+            errorMessage = "すべての項目を入力してください。";
+            return;
+        }
 
-        bool success = await VotingService.CastVoteAsync(request);
+        isSubmitting = true;
+        errorMessage = null;
+        
+        try
+        {
+            var request = new CastVoteRequest
+            {
+                ElectionId = ElectionId,
+                SelectedCandidate = selectedCandidateId!,
+                VoterIdentifier = voterIdentifier
+            };
+
+            bool success = await VotingService.CastVoteAsync(request);
+            
+            if (success)
+            {
+                NavigationManager.NavigateTo($"/results/{ElectionId}");
+            }
+            else
+            {
+                errorMessage = "投票に失敗しました。";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"エラーが発生しました: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
     }
 }

@@ -1,0 +1,143 @@
+@page "/create-election"
+@using VotingSystem.Application.DTOs
+@using VotingSystem.Application.Services
+@inject IElectionService ElectionService
+@inject NavigationManager NavigationManager
+
+<PageTitle>選挙作成</PageTitle>
+<h1>新しい選挙を作成</h1>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <EditForm Model="@request" OnValidSubmit="@SubmitElection">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <!-- 選挙タイトル -->
+            <div class="mb-3">
+                <label for="title" class="form-label">選挙タイトル</label>
+                <InputText id="title" class="form-control" @bind-Value="request.Title" placeholder="例: 2025年度学生会長選挙" />
+                <ValidationMessage For="@(() => request.Title)" />
+            </div>
+
+            <!-- 開始日時 -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="startDate" class="form-label">開始日時</label>
+                    <input type="datetime-local" id="startDate" class="form-control" @bind="request.StartDate" @bind:format="yyyy-MM-ddTHH:mm" />
+                    <ValidationMessage For="@(() => request.StartDate)" />
+                </div>
+                <div class="col-md-6">
+                    <label for="endDate" class="form-label">終了日時</label>
+                    <input type="datetime-local" id="endDate" class="form-control" @bind="request.EndDate" @bind:format="yyyy-MM-ddTHH:mm" />
+                    <ValidationMessage For="@(() => request.EndDate)" />
+                </div>
+            </div>
+
+            <!-- 候補者追加 -->
+            <div class="mb-3">
+                <label class="form-label">候補者</label>
+                @for (int i = 0; i < request.Candidates.Count; i++)
+                {
+                    int index = i; // クロージャ対策
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control" @bind="request.Candidates[index]" placeholder="候補者名" />
+                        <button type="button" class="btn btn-outline-danger" @onclick="() => RemoveCandidate(index)">削除</button>
+                    </div>
+                }
+                <button type="button" class="btn btn-outline-primary" @onclick="AddCandidate">候補者を追加</button>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                        <text>作成中...</text>
+                    }
+                    else
+                    {
+                        <text>選挙を作成</text>
+                    }
+                </button>
+                <a href="/elections" class="btn btn-secondary">キャンセル</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private CreateElectionRequest request = new CreateElectionRequest
+    {
+        StartDate = DateTime.Now.AddHours(1),
+        EndDate = DateTime.Now.AddDays(7),
+        Candidates = new List<string> { "", "" } // 初期候補者2人
+    };
+
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    private void AddCandidate()
+    {
+        request.Candidates.Add("");
+    }
+
+    private void RemoveCandidate(int index)
+    {
+        if (request.Candidates.Count > 1) // 最低1人は必要
+        {
+            request.Candidates.RemoveAt(index);
+        }
+    }
+
+    private async Task SubmitElection()
+    {
+        // 空の候補者を除去
+        request.Candidates = request.Candidates.Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+
+        if (request.Candidates.Count < 2)
+        {
+            errorMessage = "候補者は最低2人必要です。";
+            return;
+        }
+
+        if (request.EndDate <= request.StartDate)
+        {
+            errorMessage = "終了日時は開始日時より後に設定してください。";
+            return;
+        }
+
+        isSubmitting = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            var result = await ElectionService.CreateElectionAsync(request);
+            successMessage = "選挙が正常に作成されました！";
+            
+            // 3秒後に選挙一覧に遷移
+            await Task.Delay(3000);
+            NavigationManager.NavigateTo("/elections");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"選挙の作成に失敗しました: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

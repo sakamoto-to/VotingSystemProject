@@ -1,0 +1,121 @@
+@page "/results/{electionId:guid}"
+@using VotingSystem.Application.DTOs
+@using VotingSystem.Application.Services
+@inject IVotingService VotingService
+@inject IElectionService ElectionService
+
+<PageTitle>投票結果</PageTitle>
+<h1>投票結果</h1>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (results == null)
+{
+    <p><em>読み込み中...</em></p>
+}
+else
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <h4 class="card-title">@results.ElectionTitle</h4>
+            <p class="card-text">
+                <strong>総投票数:</strong> @results.TotalVotes<br />
+                <strong>最終更新:</strong> @results.LastUpdated.ToString("yyyy/MM/dd HH:mm:ss")
+            </p>
+        </div>
+    </div>
+
+    @if (results.Results.Count == 0)
+    {
+        <div class="alert alert-info">まだ投票がありません。</div>
+    }
+    else
+    {
+        <div class="row">
+            <!-- 結果テーブル -->
+            <div class="col-md-6">
+                <h5>詳細結果</h5>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>候補者</th>
+                            <th>得票数</th>
+                            <th>得票率</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var result in results.Results.OrderByDescending(r => r.VoteCount))
+                        {
+                            <tr>
+                                <td>@result.CandidateName</td>
+                                <td>@result.VoteCount</td>
+                                <td>@result.Percentage.ToString("F1")%</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- プログレスバー表示 -->
+            <div class="col-md-6">
+                <h5>得票率</h5>
+                @foreach (var result in results.Results.OrderByDescending(r => r.VoteCount))
+                {
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>@result.CandidateName</span>
+                            <span>@result.Percentage.ToString("F1")%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: @(result.Percentage)%" 
+                                 aria-valuenow="@result.Percentage" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="mt-4">
+        <a href="/elections" class="btn btn-secondary">選挙一覧に戻る</a>
+        <button @onclick="RefreshResults" class="btn btn-outline-primary">結果を更新</button>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid ElectionId { get; set; }
+
+    private VoteResultsResponse? results;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadResults();
+    }
+
+    private async Task LoadResults()
+    {
+        try
+        {
+            results = await VotingService.GetResultsAsync(ElectionId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"結果の読み込みに失敗しました: {ex.Message}";
+        }
+    }
+
+    private async Task RefreshResults()
+    {
+        errorMessage = null;
+        await LoadResults();
+    }
+}

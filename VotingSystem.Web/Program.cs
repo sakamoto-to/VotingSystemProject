@@ -1,5 +1,7 @@
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
+using Microsoft.EntityFrameworkCore;
+using VotingSystem.Application.Services;
+using VotingSystem.Infrastructure.Data;
+using VotingSystem.Infrastructure.Services;
 using VotingSystem.Web.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +10,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddSingleton<WeatherForecastService>();
+builder.Services.AddDbContext<VotingDbContext>(options =>
+    options.UseSqlite("Data Source=voting.db"));
+
+builder.Services.AddScoped<IElectionService, ElectionService>();
+builder.Services.AddScoped<IVotingService, VotingService>();
 
 var app = builder.Build();
 
