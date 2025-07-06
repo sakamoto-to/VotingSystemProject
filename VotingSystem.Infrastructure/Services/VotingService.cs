@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using VotingSystem.Application.DTOs;
+using VotingSystem.Application.Repositories;
 using VotingSystem.Application.Services;
 using VotingSystem.Domain.Entities;
 using VotingSystem.Infrastructure.Data;
@@ -12,10 +13,20 @@ namespace VotingSystem.Infrastructure.Services
     public class VotingService : IVotingService
     {
         private readonly VotingDbContext _context;
+        private readonly IBlockchainRepository _blockchainRepository;
+        private readonly IBlockchainService _blockchainService;
 
-        public VotingService(VotingDbContext context)
+        public VotingService(
+            VotingDbContext context,
+            IBlockchainRepository blockchainRepository,
+            IBlockchainService blockchainService)
         {
             _context = context;
+            _blockchainRepository = blockchainRepository;
+            _blockchainService = blockchainService;
+            
+            // ジェネシスブロック初期化
+            _blockchainRepository.InitializeGenesisBlock();
         }
 
         /// <summary>
@@ -61,6 +72,25 @@ namespace VotingSystem.Infrastructure.Services
 
             _context.Votes.Add(vote);
             await _context.SaveChangesAsync();
+
+            // ブロックチェーンに記録
+            var transaction = _blockchainService.CreateVoteTransaction(
+                request.VoterIdentifier,
+                request.SelectedCandidate,
+                "signature" // 仮の署名
+            );
+            
+            var latestBlock = _blockchainRepository.GetLatestBlock();
+            var newIndex = latestBlock?.Index + 1 ?? 1;
+            var previousHash = latestBlock?.Hash ?? "0";
+            
+            var newBlock = _blockchainService.CreateBlock(
+                newIndex,
+                new List<VotingSystem.Domain.Blockchain.VoteTransaction> { transaction },
+                previousHash
+            );
+            
+            _blockchainRepository.AddBlock(newBlock);
 
             return true;
         }

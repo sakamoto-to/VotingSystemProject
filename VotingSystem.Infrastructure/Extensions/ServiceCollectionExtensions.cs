@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using VotingSystem.Application.Repositories;
 using VotingSystem.Application.Services;
 using VotingSystem.Infrastructure.Data;
+using VotingSystem.Infrastructure.Repositories;
 using VotingSystem.Infrastructure.Services;
 
 namespace VotingSystem.Infrastructure.Extensions
@@ -15,6 +17,9 @@ namespace VotingSystem.Infrastructure.Extensions
             services.AddScoped<IBlockchainService, BlockchainService>();
             services.AddScoped<IElectionService, ElectionService>();
             services.AddScoped<IVotingService, VotingService>();
+            
+            // Repository登録
+            services.AddSingleton<IBlockchainRepository, BlockchainRepository>();
             
             return services;
         }
