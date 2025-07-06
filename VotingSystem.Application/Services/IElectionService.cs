@@ -1,8 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using VotingSystem.Application.DTOs;
 
+/// <summary>
+/// 選挙関連のサービスインターフェース
+/// </summary>
 namespace VotingSystem.Application.Services
 {
     public interface IElectionService
