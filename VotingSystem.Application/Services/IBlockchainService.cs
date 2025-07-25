@@ -10,6 +10,7 @@ namespace VotingSystem.Application.Services
         Block CreateBlock(int index, List<VoteTransaction> transactions, string previousHash);
         bool ValidateBlock(Block block, Block previousBlock);
         bool ValidateChain(List<Block> chain);
+        (bool IsValid, List<string> Errors) ValidateChainDetailed(List<Block> chain);
         VoteTransaction CreateVoteTransaction(string voterId, string candidateId, string signature);
     }
 }

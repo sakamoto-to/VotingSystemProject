@@ -1,0 +1,222 @@
+@page "/blockchain"
+@using VotingSystem.Application.Services
+@using VotingSystem.Application.Repositories
+@using VotingSystem.Domain.Blockchain
+@inject IBlockchainService BlockchainService
+@inject IBlockchainRepository BlockchainRepository
+
+<PageTitle>ブロックチェーン</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>ブロックチェーン</h1>
+    <button class="btn btn-outline-primary" @onclick="RefreshChain">
+        <i class="oi oi-reload"></i> 更新
+    </button>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">読み込み中...</span>
+        </div>
+        <p class="mt-2">ブロックチェーンを読み込んでいます...</p>
+    </div>
+}
+else if (blocks == null || blocks.Count == 0)
+{
+    <div class="alert alert-info">
+        <h4>ブロックチェーンが空です</h4>
+        <p>まだ投票が行われていないため、ブロックチェーンにデータがありません。</p>
+        <a href="/elections" class="btn btn-primary">選挙一覧へ</a>
+    </div>
+}
+else
+{
+    <!-- ブロックチェーン統計 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">総ブロック数</h5>
+                    <h2 class="text-primary">@blocks.Count</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">総トランザクション数</h5>
+                    <h2 class="text-success">@totalTransactions</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">チェーン整合性</h5>
+                    <h2 class="@(isChainValid ? "text-success" : "text-danger")">
+                        @(isChainValid ? "有効" : "無効")
+                    </h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">最新ブロック</h5>
+                    <small class="text-muted">@latestBlockTime</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ブロック一覧 -->
+    <div class="row">
+        @foreach (var block in blocks.OrderByDescending(b => b.Index))
+        {
+            <div class="col-md-6 mb-3">
+                <div class="card @(block.Index == 0 ? "border-warning" : "border-primary")">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            @if (block.Index == 0)
+                            {
+                                <span class="badge bg-warning text-dark">ジェネシス</span>
+                            }
+                            ブロック #@block.Index
+                        </h6>
+                        <small class="text-muted">@block.Timestamp.ToString("yyyy/MM/dd HH:mm:ss")</small>
+                    </div>
+                    <div class="card-body">
+                        <!-- ブロック基本情報 -->
+                        <div class="mb-3">
+                            <strong>ハッシュ:</strong><br />
+                            <code class="small">@block.Hash</code>
+                        </div>
+                        
+                        @if (block.Index > 0)
+                        {
+                            <div class="mb-3">
+                                <strong>前ブロックハッシュ:</strong><br />
+                                <code class="small">@block.PreviousHash</code>
+                            </div>
+                        }
+
+                        <!-- トランザクション情報 -->
+                        <div class="mb-3">
+                            <strong>トランザクション数:</strong> @block.Transactions.Count
+                        </div>
+
+                        @if (block.Transactions.Any())
+                        {
+                            <div class="accordion" id="accordion-@block.Index">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" 
+                                                data-bs-toggle="collapse" 
+                                                data-bs-target="#collapse-@block.Index">
+                                            トランザクション詳細を表示
+                                        </button>
+                                    </h2>
+                                    <div id="collapse-@block.Index" class="accordion-collapse collapse">
+                                        <div class="accordion-body">
+                                            @foreach (var transaction in block.Transactions)
+                                            {
+                                                <div class="border p-2 mb-2 rounded">
+                                                    <div class="row">
+                                                        <div class="col-md-6">
+                                                            <small><strong>投票者ID:</strong></small><br />
+                                                            <code class="small">@transaction.VoterId</code>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <small><strong>候補者:</strong></small><br />
+                                                            <span class="badge bg-info">@transaction.CandidateId</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row mt-2">
+                                                        <div class="col-12">
+                                                            <small><strong>タイムスタンプ:</strong></small><br />
+                                                            <small class="text-muted">@transaction.Timestamp.ToString("yyyy/MM/dd HH:mm:ss.fff")</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- チェーン検証結果 -->
+    @if (!isChainValid)
+    {
+        <div class="alert alert-danger">
+            <h4>⚠️ チェーン整合性エラー</h4>
+            <p>ブロックチェーンの整合性に問題が検出されました。データが改ざんされている可能性があります。</p>
+            <hr>
+            <h6>検出されたエラー:</h6>
+            <ul class="mb-0">
+                @foreach (var error in validationErrors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+}
+
+@code {
+    private List<Block> blocks = new();
+    private bool isLoading = true;
+    private bool isChainValid = true;
+    private List<string> validationErrors = new();
+    private int totalTransactions = 0;
+    private string latestBlockTime = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBlockchain();
+    }
+
+    private async Task LoadBlockchain()
+    {
+        isLoading = true;
+        
+        try
+        {
+            // ブロックチェーン全体を取得
+            blocks = BlockchainRepository.GetAllBlocks();
+            
+            // 統計情報を計算
+            totalTransactions = blocks.Sum(b => b.Transactions.Count);
+            
+            // チェーンの整合性を検証（詳細情報付き）
+            var validationResult = BlockchainService.ValidateChainDetailed(blocks);
+            isChainValid = validationResult.IsValid;
+            validationErrors = validationResult.Errors;
+            
+            // 最新ブロックの時間
+            var latestBlock = blocks.OrderByDescending(b => b.Index).FirstOrDefault();
+            latestBlockTime = latestBlock?.Timestamp.ToString("yyyy/MM/dd HH:mm:ss") ?? "なし";
+        }
+        catch (Exception ex)
+        {
+            // エラーハンドリング
+            Console.WriteLine($"ブロックチェーン読み込みエラー: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshChain()
+    {
+        await LoadBlockchain();
+    }
+}
