@@ -11,6 +11,7 @@ namespace VotingSystem.Application.Repositories
         List<Block> GetChain();
         Block? GetLatestBlock();
         int GetChainLength();
+        List<Block> GetAllBlocks();
         void InitializeGenesisBlock();
     }
 }

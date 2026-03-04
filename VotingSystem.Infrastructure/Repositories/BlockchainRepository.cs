@@ -55,6 +55,14 @@ namespace VotingSystem.Infrastructure.Repositories
         }
 
         /// <summary>
+        /// 全てのブロックを取得
+        /// </summary>
+        public List<Block> GetAllBlocks()
+        {
+            return GetChain();
+        }
+
+        /// <summary>
         /// ジェネシスブロックを初期化
         /// </summary>
         public void InitializeGenesisBlock()
