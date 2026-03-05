@@ -1,0 +1,139 @@
+@page "/simulation/candidate"
+@using VotingSystem.Application.Simulation.Services
+@using VotingSystem.Domain.Simulation.Entities
+@using VotingSystem.Infrastructure.Data
+@using Microsoft.EntityFrameworkCore
+@inject SupportCalculationService CalculationService
+@inject VotingDbContext DbContext
+
+<PageTitle>候補者モード - 政策ポイント配分</PageTitle>
+
+<div class="simulation-container">
+    <header class="simulation-header">
+        <h1 class="page-title">マニフェスト作成</h1>
+        <p class="page-description">
+            持ち点 <strong>100ポイント</strong> を4つの政策に配分し、有権者の支持を集めましょう。
+        </p>
+    </header>
+
+    <div class="simulation-grid">
+        <section class="policy-section panel">
+            <h2 class="panel-title">政策ポイント配分</h2>
+            <div class="policy-controls">
+                <!-- 経済 -->
+                <div class="policy-item">
+                    <div class="policy-header">
+                        <span class="policy-name">経済・成長</span>
+                        <span class="policy-value">@manifesto.EconomyPoints pt</span>
+                    </div>
+                    <input type="range" class="form-range custom-range" min="0" max="100" @bind="manifesto.EconomyPoints" @bind:event="oninput" aria-label="経済ポイント" />
+                </div>
+
+                <!-- 教育 -->
+                <div class="policy-item">
+                    <div class="policy-header">
+                        <span class="policy-name">子育て・教育</span>
+                        <span class="policy-value">@manifesto.EducationPoints pt</span>
+                    </div>
+                    <input type="range" class="form-range custom-range" min="0" max="100" @bind="manifesto.EducationPoints" @bind:event="oninput" aria-label="教育ポイント" />
+                </div>
+
+                <!-- 福祉 -->
+                <div class="policy-item">
+                    <div class="policy-header">
+                        <span class="policy-name">医療・福祉</span>
+                        <span class="policy-value">@manifesto.WelfarePoints pt</span>
+                    </div>
+                    <input type="range" class="form-range custom-range" min="0" max="100" @bind="manifesto.WelfarePoints" @bind:event="oninput" aria-label="福祉ポイント" />
+                </div>
+
+                <!-- 治安 -->
+                <div class="policy-item">
+                    <div class="policy-header">
+                        <span class="policy-name">防衛・治安</span>
+                        <span class="policy-value">@manifesto.SecurityPoints pt</span>
+                    </div>
+                    <input type="range" class="form-range custom-range" min="0" max="100" @bind="manifesto.SecurityPoints" @bind:event="oninput" aria-label="治安ポイント" />
+                </div>
+            </div>
+
+            <div class="points-summary @(IsOverLimit ? "invalid-points" : TotalPoints == 100 ? "perfect-points" : "")">
+                <span class="summary-label">合計ポイント:</span>
+                <span class="summary-value">@TotalPoints / 100</span>
+            </div>
+
+            @if (IsOverLimit)
+            {
+                <div class="alert-message error" role="alert">
+                    ポイントが上限を超えています。100以内に収めてください。
+                </div>
+            }
+
+            <div class="action-area">
+                <button class="btn-primary-action" disabled="@IsOverLimit" @onclick="RunSimulation">
+                    シミュレーション実行
+                </button>
+            </div>
+        </section>
+
+        <section class="results-section panel" aria-live="polite">
+            <h2 class="panel-title">有権者の支持率</h2>
+            @if (hasSimulated)
+            {
+                <div class="results-list">
+                    @foreach (var result in simulationResults.OrderByDescending(x => x.Value))
+                    {
+                        var persona = personas.First(p => p.Id == result.Key);
+                        var supportLevel = result.Value >= 30 ? "high" : result.Value > 0 ? "medium" : "low";
+                        
+                        <div class="result-card support-@supportLevel">
+                            <div class="result-header">
+                                <h3 class="persona-name">@persona.Name</h3>
+                                <span class="score-badge">@result.Value.ToString("F1")</span>
+                            </div>
+                            <p class="persona-desc">@persona.Description</p>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <p>ポイントを配分し、シミュレーションを実行するとここに支持率が表示されます。</p>
+                </div>
+            }
+        </section>
+    </div>
+</div>
+
+@code {
+    private CandidateManifesto manifesto = new CandidateManifesto
+    {
+        EconomyPoints = 25,
+        EducationPoints = 25,
+        WelfarePoints = 25,
+        SecurityPoints = 25
+    };
+
+    private List<VoterPersona> personas = new();
+    private TrendEvent currentTrend = new TrendEvent(); 
+
+    private bool hasSimulated = false;
+    private Dictionary<int, double> simulationResults = new();
+
+    private int TotalPoints => manifesto.EconomyPoints + manifesto.EducationPoints + manifesto.WelfarePoints + manifesto.SecurityPoints;
+    private bool IsOverLimit => TotalPoints > 100;
+
+    protected override async Task OnInitializedAsync()
+    {
+        personas = await DbContext.VoterPersonas.ToListAsync();
+    }
+
+    private void RunSimulation()
+    {
+        if (IsOverLimit) return;
+        simulationResults = CalculationService.CalculateSupportScore(manifesto, personas, currentTrend);
+        hasSimulated = true;
+    }
+}
